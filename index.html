@@ -3091,11 +3091,11 @@ async function verifySMSProfile(){
 function refreshProfileAuth(){
   const lo=$el('prof-loggedout'), li=$el('prof-loggedin');
   if(!lo||!li) return;
-  if(fbUser&&G.pin){
+  if(fbUser){
     lo.style.display='none'; li.style.display='block';
-    $el('prof-li-av').textContent=G.av;
-    $el('prof-li-name').textContent=G.name;
-    $el('prof-li-pin').textContent=G.pin;
+    $el('prof-li-av').textContent=G.av||'👤';
+    $el('prof-li-name').textContent=G.name||fbUser.displayName||'Hráč';
+    $el('prof-li-pin').textContent=G.pin||'načítám…';
     const emailEl=$el('prof-li-email');
     if(emailEl) emailEl.textContent=fbUser.email||fbUser.phoneNumber||'Online účet ✓';
   } else {
@@ -3657,15 +3657,18 @@ function initFirebase(){
     if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db=firebase.firestore(); fbAuth=firebase.auth(); fbReady=true;
     initAnalytics(); initStorage(); setTimeout(initRemoteConfig,2000);
+    // Handle Google redirect result FIRST (before auth state)
+    fbAuth.getRedirectResult().then(async result=>{
+      if(result&&result.user){
+        await afterLogin(result.user);
+      }
+    }).catch(e=>console.warn('Redirect result:',e));
+
     fbAuth.onAuthStateChanged(user=>{
       fbUser=user;
       if(user){ onLoggedIn(user); }
       else { updateLoginBanner(false); refreshProfileAuth(); }
     });
-    // Handle Google redirect result
-    fbAuth.getRedirectResult().then(result=>{
-      if(result&&result.user) afterLogin(result.user);
-    }).catch(e=>console.warn('Redirect result error:',e));
   }catch(e){ console.warn('Firebase init failed:',e); updateLoginBanner(false); }
 }
 
@@ -3675,6 +3678,11 @@ function updateLoginBanner(loggedIn){
   lb.style.display=loggedIn?'none':'flex';
   flb.style.display=loggedIn?'flex':'none';
   if(sb) sb.style.display=loggedIn?'block':'none';
+  if(loggedIn&&fbUser){
+    const avEl=$el('fr-logged-av'); if(avEl) avEl.textContent=G.av||'👤';
+    const nmEl=$el('fr-logged-name'); if(nmEl) nmEl.textContent=G.name||fbUser.displayName||'Hráč';
+    const pinEl=$el('fr-logged-pin'); if(pinEl) pinEl.textContent=G.pin||'';
+  }
 }
 
 async function onLoggedIn(user){
