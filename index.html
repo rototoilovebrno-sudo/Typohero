@@ -9,7 +9,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-remote-config-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
@@ -2037,6 +2036,21 @@ body.theme-ocean{--bg:#000a1a;--bg2:#001025;--bg3:#001830;--panel:#00203d;--bord
         <button class="btn btn-green" onclick="registerEmailProfile()" style="flex:1;font-size:8px;">Registrovat</button>
       </div>
 
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font-size:11px;color:var(--muted);">nebo PIN kód</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input id="prof-pin-in" type="text" placeholder="Zadej PIN (AB1234)…" maxlength="6"
+          style="flex:1;background:var(--bg2);border:2px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--px);font-size:13px;padding:10px;outline:none;text-transform:uppercase;letter-spacing:3px;"
+          oninput="this.value=this.value.toUpperCase()">
+        <button class="btn btn-acc" onclick="loginFromProfile()" style="font-size:8px;padding:10px 14px;">→</button>
+      </div>
+      <button class="btn btn-green btn-full" onclick="registerFromProfile()" style="font-size:8px;margin-bottom:6px;" id="prof-register-btn">
+        🎉 Vytvořit nový účet + PIN
+      </button>
+
       <div id="prof-auth-msg" style="margin-top:10px;font-size:12px;font-weight:700;min-height:16px;text-align:center;"></div>
     </div>
     <!-- Logged IN -->
@@ -2925,7 +2939,7 @@ const TITLES=[
 
 // ── GOOGLE LOGIN ──
 async function loginGoogle(){
-  if(!fbReady){ toast('Firebase není nakonfigurován','err'); return; }
+  if(!fbReady||!fbAuth){ toast('Firebase není připraven — obnov stránku','err'); return; }
   try{
     const provider = new firebase.auth.GoogleAuthProvider();
     await fbAuth.signInWithRedirect(provider);
@@ -3024,6 +3038,7 @@ async function loginEmailProfile(){
   const email=$el('prof-email')?.value.trim();
   const pass=$el('prof-pass')?.value;
   const msg=$el('prof-auth-msg');
+  if(!fbReady||!fbAuth){msg.style.color='var(--red)';msg.textContent='Firebase není připraven — obnov stránku';return;}
   if(!email||!pass){msg.style.color='var(--red)';msg.textContent='Vyplň email a heslo!';return;}
   msg.style.color='var(--muted)';msg.textContent='Přihlašuji…';
   try{
@@ -3036,6 +3051,7 @@ async function registerEmailProfile(){
   const email=$el('prof-email')?.value.trim();
   const pass=$el('prof-pass')?.value;
   const msg=$el('prof-auth-msg');
+  if(!fbReady||!fbAuth){msg.style.color='var(--red)';msg.textContent='Firebase není připraven — obnov stránku';return;}
   if(!email||!pass){msg.style.color='var(--red)';msg.textContent='Vyplň email a heslo!';return;}
   if(pass.length<6){msg.style.color='var(--red)';msg.textContent='Heslo min. 6 znaků!';return;}
   msg.style.color='var(--muted)';msg.textContent='Vytvářím účet…';
