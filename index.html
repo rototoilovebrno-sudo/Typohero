@@ -3643,8 +3643,8 @@ function initFirebase(){
     initAnalytics(); initStorage(); setTimeout(initRemoteConfig,2000);
     fbAuth.onAuthStateChanged(user=>{
       fbUser=user;
-      if(user) onLoggedIn(user);
-      else updateLoginBanner(false);
+      if(user){ onLoggedIn(user); }
+      else { updateLoginBanner(false); refreshProfileAuth(); }
     });
     // Handle Google redirect result
     fbAuth.getRedirectResult().then(result=>{
@@ -3662,22 +3662,25 @@ function updateLoginBanner(loggedIn){
 }
 
 async function onLoggedIn(user){
-  fbUser=user;
-  // Load profile from Firestore
+  fbUser=user; G.uid=user.uid;
   try{
     const doc=await db.collection('users').doc(user.uid).get();
     if(doc.exists){
       const d=doc.data();
-      // Sync cloud data → local if cloud is newer
       if((d.xp||0)>G.xp){ G.xp=d.xp; G.streak=d.streak||G.streak; G.bestSpd=d.bestSpd||G.bestSpd; }
-      G.uid=user.uid;
-      $el('fr-logged-av').textContent=d.av||G.av;
-      $el('fr-logged-name').textContent=d.name||G.name;
-      $el('fr-logged-pin').textContent=d.pin||'';
+      if(d.name&&d.name!=='Hrdina') G.name=d.name;
+      if(d.av) G.av=d.av;
+      G.pin=d.pin||G.pin;
       sv();
+    } else {
+      // New Google user — create profile
+      await afterLoginNew(user);
+      return;
     }
   }catch(e){ console.warn('Load profile failed:',e); }
   updateLoginBanner(true);
+  refreshProfileAuth();
+  buildHome();
   loadFriends();
 }
 
