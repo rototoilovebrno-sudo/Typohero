@@ -2925,13 +2925,11 @@ const TITLES=[
 
 // ── GOOGLE LOGIN ──
 async function loginGoogle(){
-  const msg=$el('login-msg')||$el('prof-auth-msg');
-  if(!fbReady){if(msg){msg.style.color='var(--red)';msg.textContent='Firebase není nakonfigurován';}return;}
+  if(!fbReady){ toast('Firebase není nakonfigurován','err'); return; }
   try{
-    const provider=new firebase.auth.GoogleAuthProvider();
+    const provider = new firebase.auth.GoogleAuthProvider();
     await fbAuth.signInWithRedirect(provider);
-    // Page will redirect — result handled in initFirebase via getRedirectResult
-  }catch(e){if(msg){msg.style.color='var(--red)';msg.textContent='Chyba: '+e.message;}}
+  }catch(e){ toast('Chyba Google: '+e.message,'err'); }
 }
 
 // ── EMAIL LOGIN ──
