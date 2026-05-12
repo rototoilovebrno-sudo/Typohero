@@ -1522,7 +1522,22 @@ body{margin:0;padding:20px;font-family:serif;}@media print{body{padding:0;}}
 <!-- ════════════════════════════════════
      PAGE — HRA (TypoHero Game)
 ════════════════════════════════════ -->
-<div class="page" id="page-hra" style="padding-top:0;">
+<div class="page" id="page-hra" style="padding-top:0;"></div>
+
+<script>
+// Počkej až se stránka načte
+setTimeout(function() {
+  var appDiv = document.createElement('div');
+  appDiv.id = 'app';
+  appDiv.style.cssText = 'max-width:800px;margin:0 auto;padding:0 14px 80px;min-height:100vh;';
+  document.getElementById('page-hra').appendChild(appDiv);
+  
+  // Zavolej buildHome (pokud existuje)
+  if (typeof buildHome === 'function') {
+    buildHome();
+  }
+}, 300);
+</script>
 <div id="toast" class="toast"></div>
 <div id="flash"></div>
 <input id="hi" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
