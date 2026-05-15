@@ -8092,7 +8092,15 @@ let mpGameText=null, mpStartTime=0, mpTimerInterval=null;
 const MP_XP=[80,60,40,20,10];
 const MP_GEMS=[20,14,10,6,4];
 
-function mpGetId(){ return fbUser?fbUser.uid:(G._mpAnonId||(G._mpAnonId='anon_'+Math.random().toString(36).slice(2,10))); }
+function mpGetId(){
+  if(fbUser) return fbUser.uid;
+  // Ulož anon ID do G aby přežilo mezi voláními
+  if(!G._mpAnonId){
+    G._mpAnonId = 'anon_' + Math.random().toString(36).slice(2,10);
+    sv();
+  }
+  return G._mpAnonId;
+}
 
 function mpGenCode(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -8186,6 +8194,14 @@ function mpSubscribe(code){
     r.players=Object.values(r.players||{});
     mpRoom=r;
     if(r.state==='waiting'){ mpRenderLobby(); mpView('mp-view-lobby'); }
+    if(r.state==='cancelled'){
+      // Host zrušil místnost
+      if(mpUnsub){ mpUnsub(); mpUnsub=null; }
+      mpRoomId=null; mpRoom=null; mpIsHost=false; mpGameText=null;
+      mpView('mp-view-menu');
+      toast('❌ Hostitel zrušil místnost','err');
+      return;
+    }
     if(r.state==='countdown'){ mpView('mp-view-game'); mpRenderRaceTracks(); }
     if(r.state==='playing'&&!mpGameText){
       mpGameText=r.text;
@@ -8223,11 +8239,23 @@ function mpRenderLobby(){
     list.appendChild(d);
   });
   const actions=$el('mp-lobby-actions');
-  if(mpRoom.host===myId){
-    actions.innerHTML=`<button class="btn btn-primary" style="width:100%;font-size:14px;" onclick="mpStart()">
-      ${mpRoom.mode==='duel'?'⚔️ Spustit duel':'🚀 Spustit hru'}</button>`;
+  // Porovnej host s mým ID — funkce mpIsHost je spolehlivější
+  const amHost = mpIsHost || mpRoom.host === myId;
+  if(amHost){
+    const minPlayers = mpRoom.mode === 'duel' ? 2 : 1;
+    const canStart = players.length >= minPlayers;
+    actions.innerHTML=`
+      <button class="btn btn-primary" style="width:100%;font-size:14px;padding:14px;" onclick="mpStart()">
+        ${mpRoom.mode==='duel'?'⚔️ Spustit duel':'🚀 Spustit hru'}
+      </button>
+      ${!canStart ? `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:6px;">⏳ Čekej na ${minPlayers-players.length} ${minPlayers-players.length===1?'hráče':'hráče'}…</div>` : ''}
+      <div style="text-align:center;font-size:10px;color:var(--muted);margin-top:4px;">Jsi hostitel 👑 — ty spouštíš hru</div>
+      <button class="btn btn-red" style="width:100%;font-size:13px;margin-top:10px;" onclick="mpCancelRoom()">🗑 Zrušit místnost</button>`;
   } else {
-    actions.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:13px;padding:10px">⏳ Čekám na hosta…</div>`;
+    actions.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:13px;padding:12px;background:var(--bg3);border-radius:var(--r);border:1.5px solid var(--border);">
+      ⏳ Čekám na hostitele, aby spustil hru…
+    </div>
+    <button class="btn btn-red" style="width:100%;font-size:13px;margin-top:10px;" onclick="mpLeave()">🚪 Opustit místnost</button>`;
   }
 }
 
@@ -8238,7 +8266,10 @@ function mpCopyCode(){
 
 // ── Spuštění hry ──
 async function mpStart(){
-  if(!rtdb||!mpRoomId||mpRoom?.host!==mpGetId())return;
+  if(!rtdb||!mpRoomId) return;
+  // Zkontroluj hostitelství dvěma způsoby
+  const amHost = mpIsHost || mpRoom?.host === mpGetId();
+  if(!amHost){ toast('Jen hostitel může spustit hru!','err'); return; }
   await rtdb.ref('rooms/'+mpRoomId+'/state').set('countdown');
   let count=3;
   const tick=()=>{
@@ -8445,6 +8476,22 @@ async function mpRequestRematch(){
   $el('mp-result-overlay').classList.remove('show');
   $el('mp-countdown').classList.remove('show');
   toast('Nová hra připravena!','ok');
+}
+
+// ── Zrušení místnosti (jen host) ──
+async function mpCancelRoom(){
+  if(!rtdb || !mpRoomId) { mpLeave(); return; }
+  try {
+    // Oznám ostatním že místnost je zrušena
+    await rtdb.ref('rooms/'+mpRoomId+'/state').set('cancelled');
+    // Smaž místnost
+    await rtdb.ref('rooms/'+mpRoomId).remove();
+  } catch(e) {}
+  // Odpoj se
+  if(mpUnsub){ mpUnsub(); mpUnsub=null; }
+  mpRoomId=null; mpRoom=null; mpIsHost=false; mpGameText=null;
+  mpView('mp-view-menu');
+  toast('🗑 Místnost zrušena','ok');
 }
 
 // ── Odchod ──
